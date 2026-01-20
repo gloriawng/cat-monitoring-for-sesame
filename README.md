@@ -17,10 +17,10 @@ As a university student away from home, I really miss Sesame and want a reliable
 
 ###### Two-Stage Classification Pipeline
 1. Cat Detection: A lightweight model filters out clips with no cat or irrelevant motion (e.g., people, shadows).
-2. (Planned) Eating Recognition: A specialized model will detect and classify eating behavior (e.g., duration, frequency) from cat-present clips.
+2. Eating Recognition: A specialized model will detect and classify eating behavior (e.g., duration, frequency) from cat-present clips.
 
 
-## Tech Stack & Skills Practiced
+## Tech Stack & Skills
 - Language: Python
 - Async Programming: asyncio
 - Hardware Integration: blinkpy API for interfacing with Blink cameras

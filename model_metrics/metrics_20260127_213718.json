@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-01-27T21:37:18.011885",
+  "model_path": "cat_presence_classifier.pth",
+  "accuracy": 0.9572192513368984,
+  "precision": 0.9579198419944475,
+  "recall": 0.9572192513368984,
+  "f1": 0.9571253037843557,
+  "num_samples": 187,
+  "mean_confidence": 0.9316902160644531,
+  "min_confidence": 0.5404459834098816,
+  "max_confidence": 0.9999983310699463,
+  "per_class_report": {
+    "cat-present": {
+      "precision": 0.975609756097561,
+      "recall": 0.9302325581395349,
+      "f1-score": 0.9523809523809523,
+      "support": 86.0
+    },
+    "no-cat": {
+      "precision": 0.9428571428571428,
+      "recall": 0.9801980198019802,
+      "f1-score": 0.9611650485436893,
+      "support": 101.0
+    },
+    "accuracy": 0.9572192513368984,
+    "macro avg": {
+      "precision": 0.9592334494773519,
+      "recall": 0.9552152889707575,
+      "f1-score": 0.9567730004623208,
+      "support": 187.0
+    },
+    "weighted avg": {
+      "precision": 0.9579198419944475,
+      "recall": 0.9572192513368984,
+      "f1-score": 0.9571253037843557,
+      "support": 187.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      80,
+      6
+    ],
+    [
+      2,
+      99
+    ]
+  ]
+}

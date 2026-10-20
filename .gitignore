@@ -1,5 +1,6 @@
 # json
 blink_config.json 
+data/blink-clips/
 
 # all the frames
 labeled-frames/

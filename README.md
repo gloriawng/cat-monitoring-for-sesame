@@ -29,3 +29,22 @@ As a university student away from home, I really miss Sesame and want a reliable
 - Data Handling: NumPy, os, shutil for file and data operations
 - Annotation Strategy: Manual image labeling of my cat's activity for supervised learning
 - Version Control: Git and GitHub for source tracking and documentation
+
+## Local web monitor
+
+Install the dependencies in `requirements.txt` in your Python environment. Start
+the existing `setup.py` once to authenticate with Blink and save the local
+`blink_config.json` file. Then run `python web_app.py` and open
+<http://127.0.0.1:8000>. The dashboard can classify an uploaded image and, after
+connecting to Blink and selecting a camera, poll for new motion clips about once
+a minute. New clips are saved under `data/blink-clips/` and sampled for cat
+presence locally.
+
+Open the dashboard from the Python server URL above, not from VS Code Live
+Server or another static preview; the frontend needs the API served by
+`web_app.py` on the same origin.
+
+The dashboard binds only to the local machine. Keep `blink_config.json` private.
+The current model classifies **cat present** versus **no cat**; it does not
+recognize Sesame as an individual cat. BlinkPy provides saved motion clips here,
+not a live video stream, so detection happens after a clip is available to sync.

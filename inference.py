@@ -7,14 +7,13 @@ import torch
 import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
-import os
 from pathlib import Path
 
 
 class CatPresenceClassifier:
     """Load and use the trained cat presence classifier model."""
     
-    def __init__(self, model_path='cat_presence_classifier.pth', device=None):
+    def __init__(self, model_path=None, device=None):
         """
         Initialize the classifier.
         
@@ -24,9 +23,11 @@ class CatPresenceClassifier:
         """
         self.device = device or torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.class_names = ['cat-present', 'no-cat']
+        if model_path is None:
+            model_path = Path(__file__).resolve().parent / 'cat_presence_classifier.pth'
         
         # Load model architecture
-        self.model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        self.model = models.resnet18(weights=None)
         num_ftrs = self.model.fc.in_features
         self.model.fc = nn.Linear(num_ftrs, len(self.class_names))
         
@@ -59,7 +60,12 @@ class CatPresenceClassifier:
             image = Image.open(image_path).convert('RGB')
         except Exception as e:
             return {'error': f"Could not load image: {e}"}
-        
+
+        return self.predict_image(image)
+
+    def predict_image(self, image):
+        """Predict cat presence in a PIL image."""
+        image = image.convert('RGB')
         image_tensor = self.transform(image).unsqueeze(0).to(self.device)
         
         with torch.no_grad():

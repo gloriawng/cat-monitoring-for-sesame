@@ -22,7 +22,8 @@ class CatPresenceClassifier:
             device (torch.device): Device to run inference on (defaults to GPU if available)
         """
         self.device = device or torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.class_names = ['cat-present', 'no-cat']
+        # The positive training frames show Sesame at her bowl; negatives show no cat.
+        self.class_names = ['sesame-present', 'not-sesame']
         if model_path is None:
             model_path = Path(__file__).resolve().parent / 'cat_presence_classifier.pth'
         

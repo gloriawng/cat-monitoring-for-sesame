@@ -28,8 +28,8 @@ class CatMonitor extends HTMLElement {
           <article class="card upload-card">
             <div class="card-head">
               <div>
-                <span class="step">01 / PHOTO CHECK</span>
-                <h2>Is there a cat?</h2>
+                <span class="step">01 / SESAME CHECK</span>
+                <h2>Is Sesame here?</h2>
               </div>
               <span class="round-icon" aria-hidden="true">↗</span>
             </div>
@@ -48,7 +48,7 @@ class CatMonitor extends HTMLElement {
             </div>
             <p class="notice" role="status" aria-live="polite"></p>
             <div class="result" hidden aria-live="polite"></div>
-            <p class="fine-print">This model detects cat presence; it cannot tell Sesame apart from another cat.</p>
+            <p class="fine-print">Trained on Sesame-at-the-bowl photos and empty-scene photos. Other cats were not included in training, so they may be mistaken for Sesame.</p>
           </article>
 
           <article class="card blink-card">
@@ -200,12 +200,12 @@ class CatMonitor extends HTMLElement {
 
   renderResult(result) {
     const target = this.shadowRoot.querySelector(".result");
-    const detected = result.class === "cat-present";
+    const detected = result.class === "sesame-present";
     const percentage = Math.round(result.confidence * 100);
     target.innerHTML = `
       <span class="result-icon">${detected ? "✳" : "○"}</span>
-      <span><strong>${detected ? "Cat detected" : "No cat detected"}</strong><small>${percentage}% confidence</small></span>
-      <span class="result-tag">${detected ? "CAT PRESENT" : "NO CAT"}</span>`;
+      <span><strong>${detected ? "Sesame likely detected" : "Sesame not detected"}</strong><small>${percentage}% model confidence · not tested against other cats</small></span>
+      <span class="result-tag">${detected ? "SESAME LIKELY" : "NOT DETECTED"}</span>`;
     target.hidden = false;
   }
 
@@ -310,7 +310,7 @@ class CatMonitor extends HTMLElement {
       const details = document.createElement("span");
       details.className = "event-details";
       const title = document.createElement("strong");
-      title.textContent = event.detected ? "Cat detected" : "No cat";
+      title.textContent = event.detected ? "Sesame likely detected" : "Sesame not detected";
       const subtitle = document.createElement("small");
       subtitle.textContent = `${event.camera} · ${new Date(event.timestamp).toLocaleString()}`;
       details.append(title, subtitle);

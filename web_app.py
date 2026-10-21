@@ -221,7 +221,7 @@ class CatMonitor:
                 if frame_index % interval == 0:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     prediction = self._predict_pil_image(Image.fromarray(rgb_frame))
-                    cat_scores.append(prediction["probabilities"]["cat-present"])
+                    cat_scores.append(prediction["probabilities"]["sesame-present"])
                 frame_index += 1
         finally:
             capture.release()
@@ -230,12 +230,12 @@ class CatMonitor:
             raise RuntimeError(f"No readable frames were found in '{clip_path.name}'.")
 
         cat_probability = float(np.mean(cat_scores))
-        label = "cat-present" if cat_probability >= 0.5 else "no-cat"
-        confidence = cat_probability if label == "cat-present" else 1 - cat_probability
+        label = "sesame-present" if cat_probability >= 0.5 else "not-sesame"
+        confidence = cat_probability if label == "sesame-present" else 1 - cat_probability
         return {
             "camera": camera,
             "clip": clip_path.name,
-            "detected": label == "cat-present",
+            "detected": label == "sesame-present",
             "class": label,
             "confidence": confidence,
             "timestamp": datetime.now().astimezone().isoformat(timespec="seconds"),

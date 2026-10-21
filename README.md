@@ -45,6 +45,19 @@ Server or another static preview; the frontend needs the API served by
 `web_app.py` on the same origin.
 
 The dashboard binds only to the local machine. Keep `blink_config.json` private.
-The current model classifies **cat present** versus **no cat**; it does not
-recognize Sesame as an individual cat. BlinkPy provides saved motion clips here,
-not a live video stream, so detection happens after a clip is available to sync.
+The saved ResNet18 checkpoint is the PyTorch model trained on this repository's
+own bowl-camera frames. Its positive examples are labeled `cat-present` and its
+negative examples `no-cat`, so the dashboard treats the positive class as
+**Sesame likely present** in that familiar scene. It has not been trained with
+other cats as negative examples and cannot reliably distinguish Sesame from a
+different cat. The reported 95.7% validation accuracy is also optimistic:
+frames from 105 clips occur in both the training and validation splits. Collect
+and label other-cat examples and hold out whole clips for a reliable
+identity-specific evaluation before relying on it to distinguish individual
+cats. To fine-tune the existing checkpoint on the current labels using only
+clip-disjoint validation frames, run `python train_model.py`, then run
+`python evaluate.py`. Only 18 validation frames from 10 clips remain after
+removing overlapping clips, so treat that score as preliminary.
+
+BlinkPy provides saved motion clips here, not a live video stream, so detection
+happens after a clip is available to sync.

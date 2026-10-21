@@ -6,7 +6,7 @@ Evaluates the trained model on validation set and tracks performance metrics.
 import torch
 import torch.nn as nn
 from torchvision import datasets, models, transforms
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import os
 import json
 from datetime import datetime
@@ -36,7 +36,7 @@ class ModelEvaluator:
         self.data_dir = data_dir
         self.metrics_dir = metrics_dir
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.class_names = ['cat-present', 'no-cat']
+        self.class_names = ['sesame-present', 'not-sesame']
         
         # Create metrics directory if it doesn't exist
         Path(self.metrics_dir).mkdir(exist_ok=True)
@@ -54,7 +54,7 @@ class ModelEvaluator:
     
     def _load_model(self):
         """Load the trained model."""
-        model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+        model = models.resnet18(weights=None)
         num_ftrs = model.fc.in_features
         model.fc = nn.Linear(num_ftrs, len(self.class_names))
         
@@ -76,13 +76,40 @@ class ModelEvaluator:
             os.path.join(self.data_dir, 'validation'),
             self.transform
         )
-        val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=0)
+        train_dataset = datasets.ImageFolder(
+            os.path.join(self.data_dir, 'train')
+        )
+        train_clip_sources = {
+            Path(path).stem.rsplit('_', 1)[0]
+            for path, _ in train_dataset.samples
+        }
+        validation_indices = [
+            index
+            for index, (path, _) in enumerate(val_dataset.samples)
+            if Path(path).stem.rsplit('_', 1)[0] not in train_clip_sources
+        ]
+        if not validation_indices:
+            raise ValueError(
+                "No clip-disjoint validation frames remain. Add validation clips "
+                "that are not also present in the training set."
+            )
+        validation_dataset = Subset(val_dataset, validation_indices)
+        validation_sources = {
+            Path(val_dataset.samples[index][0]).stem.rsplit('_', 1)[0]
+            for index in validation_indices
+        }
+        val_loader = DataLoader(
+            validation_dataset, batch_size=32, shuffle=False, num_workers=0
+        )
         
         all_preds = []
         all_labels = []
         all_confidences = []
         
-        print("Running evaluation on validation set...")
+        print(
+            f"Running clip-disjoint evaluation on {len(validation_indices)} frames "
+            f"from {len(validation_sources)} clips..."
+        )
         with torch.no_grad():
             for inputs, labels in val_loader:
                 inputs = inputs.to(self.device)
@@ -109,6 +136,8 @@ class ModelEvaluator:
             'recall': float(recall_score(all_labels, all_preds, average='weighted')),
             'f1': float(f1_score(all_labels, all_preds, average='weighted')),
             'num_samples': len(all_labels),
+            'validation_strategy': 'validation clips disjoint from training clips',
+            'num_validation_clips': len(validation_sources),
             'mean_confidence': float(np.mean(all_confidences)),
             'min_confidence': float(np.min(all_confidences)),
             'max_confidence': float(np.max(all_confidences)),
@@ -117,12 +146,14 @@ class ModelEvaluator:
         # Per-class metrics
         metrics['per_class_report'] = classification_report(
             all_labels, all_preds, 
+            labels=[0, 1],
             target_names=self.class_names,
-            output_dict=True
+            output_dict=True,
+            zero_division=0
         )
         
         # Confusion matrix
-        cm = confusion_matrix(all_labels, all_preds)
+        cm = confusion_matrix(all_labels, all_preds, labels=[0, 1])
         metrics['confusion_matrix'] = cm.tolist()
         
         return metrics, all_preds, all_labels, all_confidences

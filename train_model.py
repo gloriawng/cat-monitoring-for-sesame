@@ -3,11 +3,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import datasets, models, transforms
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, Subset
 import os
 import time
 import copy
 import warnings
+from pathlib import Path
 
 # Suppress harmless UserWarnings from Pillow or torchvision, if any
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -95,10 +96,8 @@ def train_model(model, dataloaders, dataset_sizes, criterion, optimizer, num_epo
     return model
 
 if __name__ == "__main__":
-    # --- Configuration ---
-    # Path to your project's root directory. Assuming this script is in the root.
-    data_dir = './labeled-frames'
-    model_save_path = 'cat_presence_classifier.pth' # Name for your saved model file
+    data_dir = Path(__file__).resolve().parent / 'labeled-frames'
+    model_save_path = Path(__file__).resolve().parent / 'cat_presence_classifier.pth'
 
     # --- 1. Define Data Transformations ---
     # These are standard transformations for pre-trained models like ResNet
@@ -120,66 +119,87 @@ if __name__ == "__main__":
 
     print(f"Loading data from: {data_dir}")
 
-    # --- 2. Load Datasets ---
-    # ImageFolder automatically labels based on subfolder names
-    # e.g., 'labeled-frames/train/cat-present' will be class 0, 'labeled-frames/train/no-cat' will be class 1
-    image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
-                      for x in ['train', 'validation']}
+    train_dataset = datasets.ImageFolder(
+        os.path.join(data_dir, 'train'), data_transforms['train']
+    )
+    validation_dataset = datasets.ImageFolder(
+        os.path.join(data_dir, 'validation'), data_transforms['validation']
+    )
+    if train_dataset.classes != ['cat-present', 'no-cat']:
+        raise ValueError(
+            f"Expected class order ['cat-present', 'no-cat'], got {train_dataset.classes}."
+        )
+    if validation_dataset.classes != train_dataset.classes:
+        raise ValueError("Training and validation folders must use the same classes.")
+
+    train_clip_sources = {
+        Path(path).stem.rsplit('_', 1)[0]
+        for path, _ in train_dataset.samples
+    }
+    validation_indices = [
+        index
+        for index, (path, _) in enumerate(validation_dataset.samples)
+        if Path(path).stem.rsplit('_', 1)[0] not in train_clip_sources
+    ]
+    if not validation_indices:
+        raise ValueError(
+            "No clip-disjoint validation images remain. Add validation clips "
+            "that are not also present in the training set."
+        )
+    validation_sources = {
+        Path(validation_dataset.samples[index][0]).stem.rsplit('_', 1)[0]
+        for index in validation_indices
+    }
+    validation_subset = Subset(validation_dataset, validation_indices)
+    print(
+        f"Using {len(validation_indices)} validation frames from "
+        f"{len(validation_sources)} clips not seen in training."
+    )
 
     # DataLoaders for batching and shuffling
-    # num_workers: number of subprocesses to use for data loading (adjust based on your CPU cores)
-    dataloaders = {x: DataLoader(image_datasets[x], batch_size=32, shuffle=(x=='train'), num_workers=os.cpu_count() // 2 or 1)
-                   for x in ['train', 'validation']}
-
-    dataset_sizes = {x: len(image_datasets[x]) for x in ['train', 'validation']}
-    class_names = image_datasets['train'].classes # Get the class names from the dataset (e.g., ['cat-present', 'no-cat'])
-
-    print(f"Detected classes: {class_names}")
+    dataloaders = {
+        'train': DataLoader(
+            train_dataset, batch_size=32, shuffle=True,
+            num_workers=os.cpu_count() // 2 or 1
+        ),
+        'validation': DataLoader(
+            validation_subset, batch_size=32, shuffle=False, num_workers=0
+        ),
+    }
+    dataset_sizes = {
+        'train': len(train_dataset),
+        'validation': len(validation_subset),
+    }
     print(f"Training dataset size: {dataset_sizes['train']}")
-    print(f"Validation dataset size: {dataset_sizes['validation']}")
+    print(f"Clip-disjoint validation dataset size: {dataset_sizes['validation']}")
 
     # --- 3. Determine Device ---
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # --- 4. Load Pre-trained Model and Modify for our classes ---
-    # We'll use a pre-trained ResNet18 model
-    # 'weights=models.ResNet18_Weights.IMAGENET1K_V1' loads pre-trained weights from ImageNet
-    model_ft = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
+    # Continue fine-tuning the project's existing checkpoint instead of
+    # replacing it with a generic pretrained model.
+    if not model_save_path.is_file():
+        raise FileNotFoundError(
+            f"Existing model checkpoint not found: {model_save_path}"
+        )
+    model_ft = models.resnet18(weights=None)
 
-    # Get the number of input features for the final fully connected layer
     num_ftrs = model_ft.fc.in_features
-    # Replace the final layer with a new one that has 'len(class_names)' output features
-    # This adapts the model to our specific binary (or multi-class) problem
-    model_ft.fc = nn.Linear(num_ftrs, len(class_names))
+    model_ft.fc = nn.Linear(num_ftrs, len(train_dataset.classes))
+    model_ft.load_state_dict(torch.load(model_save_path, map_location=device))
 
     # --- 5. Define Loss Function and Optimizer ---
-    # CrossEntropyLoss is suitable for multi-class classification (including binary)
     criterion = nn.CrossEntropyLoss()
-
-    # Adam optimizer is a good general-purpose choice
-    # model_ft.parameters() tells the optimizer which parameters to update
-    optimizer_ft = optim.Adam(model_ft.parameters(), lr=0.001)
-
-    # Handle Class Imbalance
-    # If 'cat-present' and 'no-cat' classes are very imbalanced,
-    # uncomment and use class weights.
-    # First, calculate class counts:
-    # class_counts = [0] * len(class_names)
-    # for _, label in image_datasets['train']:
-    #     class_counts[label] += 1
-    # total_samples = sum(class_counts)
-    # class_weights_list = [total_samples / count if count > 0 else 0 for count in class_counts]
-    # class_weights_tensor = torch.tensor(class_weights_list, dtype=torch.float).to(device)
-    # criterion = nn.CrossEntropyLoss(weight=class_weights_tensor)
-    # print(f"Class weights used: {class_weights_list}")
-
+    optimizer_ft = optim.Adam(model_ft.parameters(), lr=0.00001)
 
     # --- 6. Train the Model ---
     print("\nStarting model training...")
-    model_ft = train_model(model_ft, dataloaders, dataset_sizes, criterion, optimizer_ft, num_epochs=15) # Adjust num_epochs as needed
+    model_ft = train_model(
+        model_ft, dataloaders, dataset_sizes, criterion, optimizer_ft,
+        num_epochs=5
+    )
 
     # --- 7. Save the Trained Model ---
     torch.save(model_ft.state_dict(), model_save_path)
     print(f"\nModel saved to {model_save_path}")
-

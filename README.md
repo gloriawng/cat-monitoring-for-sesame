@@ -32,6 +32,8 @@ As a university student away from home, I really miss Sesame and want a reliable
 
 ## Local web monitor
 
+![Sesame Watch dashboard screenshot](web/sesame-watch-preview.jpg)
+
 Install the dependencies in `requirements.txt` in your Python environment. Start
 the existing `setup.py` once to authenticate with Blink and save the local
 `blink_config.json` file. Then run `python web_app.py` and open
